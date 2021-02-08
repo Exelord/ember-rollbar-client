@@ -15,31 +15,23 @@
 </p>
 
 ___
-The Rollbar client for EmberJS applications.
-> This one just works!
-
-- Automatic logger for:
-  - `js window` errors
-  - `ember` errors
-- No `Bower` dependency
-- Fastboot compatible
-- Practical wrapper with access to pure `Rollbar`
-- Compatible with Ember 3.8 and up
+The Rollbar Client is a thin layer of integration with EmberJS applications.
 
 ## Compatibility
 
-* Ember.js v3.8 or above
+* Ember.js v3.16 or above
 * Ember CLI v2.13 or above
 * Node.js v10 or above
 
 ## Installation
 
+1. `npm install rollbar`
 1. `ember install ember-rollbar-client`
 2. Add your `accessToken` in `config/environment.js`
 ```js
   module.exports = function(environment) {
     var ENV = {
-      emberRollbarClient: {
+      rollbar: {
         accessToken: 'rollbar-write-client-token',
         // By default Rollbar logging is enabled in every environment except test and development.
         // Here is an example if you want to use it only in production
@@ -50,69 +42,37 @@ The Rollbar client for EmberJS applications.
     return ENV;
   }
 ```
+3. Initialize and start the Rollbar in `/app/app.js` file:
+```js
+import Rollbar from 'rollbar';
+import config from 'YOUR_APP/config/environment';
+import { installRollbar } from 'ember-rollbar-client';
+
+// Add this line before loadInitializers()
+installRollbar(new Rollbar(config.rollbar));
+```
 
 ## Usage
 
-### Rollbar Service
-In your component, controller, route, object (or whatever) you can inject the `rollbar` service, eg:
+By default rollbar will handle automatically all uncaught errors and Ember errors. However, you can still report them manually.
+
+Import Rollbar Notifier from anywhere and use standard Rollbar API:
 
 ```js
-import Ember from 'ember';
-const { Component, inject } = Ember;
+import { rollbar } from 'ember-rollbar-client';
 
-export default Component.extend({
-  rollbar: inject.service()
-});
+rollbar.critical('Report this critical error!')
 ```
 
-And then you can use following API to log errors:
+For available API check [Rollbar documentation](https://docs.rollbar.com/docs/javascript)
+
+### Uninstalling Rollbar
+
+This can be useful in tests:
 ```js
-this.get('rollbar').critical(message, data = {})
-this.get('rollbar').error(message, data = {})
-this.get('rollbar').warning(message, data = {})
-this.get('rollbar').info(message, data = {})
-this.get('rollbar').debug(message, data = {})
-```
+import { uninstallRollbar } from 'ember-rollbar-client';
 
-### Set current user
-To set current user use just a normal setter in your session service:
-
-```js
-this.set('rollbar.currentUser', { email: 'user@email.com', id: 66 })
-```
-
-### Access current notifier
-If you can not find in our API a proper wrapper, you can always use the current Rollbar instance:
-```js
-this.get('rollbar.notifier')
-```
-
-### Support error handling from RSVP
-Create the following instance initializer in your app:
-
-```js
-// app/instance-initializer/rsvp-error-handler.js
-import RSVP from "rsvp";
-
-export function initialize(appInstance) {
-  let rollbarService = appInstance.lookup('service:rollbar');
-
-  RSVP.on('error', function(reason) {
-    rollbarService.error(reason);
-  });
-}
-
-export default {
-  name: 'rsvp-error-handler',
-  initialize
-};
-```
-
-### Create new Rollbar instance
-You can use `rollbarClient` function of the `Rollbar Service` to create a new instance of Rollbar notifier. Optionally you can pass your own config.
-
-```js
-this.get('rollbar').rollbarClient(/* config */)
+uninstallRollbar();
 ```
 
 ### Support code_version on Heroku build
@@ -122,7 +82,7 @@ Add at the bottom of your `config/environment.js` file:
 if (process.env.SOURCE_VERSION) {
   let packageJson = require('../package.json');
   let gitHash = process.env.SOURCE_VERSION.substr(0, 7);
-  ENV.emberRollbarClient.payload.client.javascript['code_version'] = `${packageJson.version}+${gitHash}`;
+  ENV.rollbar.payload.client.javascript['code_version'] = `${packageJson.version}+${gitHash}`;
 }
 ```
 
@@ -130,12 +90,12 @@ if (process.env.SOURCE_VERSION) {
 You can overwrite Rollbar configuration in environment's config. Here is the default config:
 
 ``` js
-'emberRollbarClient': {
+'rollbar': {
   enabled: environment !== 'test' && environment !== 'development',
   accessToken: '',
   verbose: true,
   captureUncaught: environment !== 'test',
-  captureUnhandledRejections: environment !== 'test',
+  captureUnhandledRejections: environment !== 'test' // && !FastBoot,
   payload: {
     environment: environment,
     client: {
